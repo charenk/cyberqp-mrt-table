@@ -150,3 +150,8 @@ Please provide feedback on:
    - Full viewport height with scrolling for >10 rows
 2. Selection state shows current page context
 3. Action buttons change based on selection state
+
+## Project Docs
+
+- [CHANGELOG](./CHANGELOG.md)
+- [Edit Column UX Notes](./UX_NOTES.md)
