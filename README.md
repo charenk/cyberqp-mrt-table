@@ -155,3 +155,7 @@ Please provide feedback on:
 
 - [CHANGELOG](./CHANGELOG.md)
 - [Edit Column UX Notes](./UX_NOTES.md)
+
+---
+
+Note: Minor docs tweak to verify CI and keep contributions active.
