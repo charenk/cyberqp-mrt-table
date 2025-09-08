@@ -558,7 +558,7 @@ function App() {
           height: shouldUseExactHeight ? 'fit-content' : 'calc(100vh - 200px)',
           minHeight: shouldUseExactHeight ? 'fit-content' : '400px',
           maxHeight: shouldUseExactHeight ? 'fit-content' : 'calc(100vh - 200px)',
-          overflow: shouldUseExactHeight ? 'visible' : 'auto',
+          overflow: 'auto', // Always allow scrolling for both horizontal and vertical
         },
       };
     },
