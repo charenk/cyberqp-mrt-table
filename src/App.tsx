@@ -5,7 +5,8 @@ import {
   type MRT_ColumnDef,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { TablePagination, Button, Switch, FormControlLabel, Menu, MenuItem, Checkbox, ListItemText, Divider, Box } from '@mui/material';
+import { TablePagination, Button, Switch, FormControlLabel, Menu, MenuItem, Checkbox, ListItemText, Divider, Box, IconButton, Tooltip } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 type Person = {
   name: {
@@ -37,6 +38,8 @@ function App() {
   const [showActions, setShowActions] = useState(true);
   const [enableSelection, setEnableSelection] = useState(true);
   const [showEditColumns, setShowEditColumns] = useState(true);
+  const [showMoreOptions, setShowMoreOptions] = useState(true);
+  const [showHoverAction, setShowHoverAction] = useState(true);
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
 
   const COLUMN_VISIBILITY_STORAGE_KEY = 'mrt-column-visibility';
@@ -148,6 +151,79 @@ function App() {
         accessorKey: 'state',
         header: 'State',
         size: 100,
+      },
+      {
+        id: 'actions',
+        header: '',
+        size: 120,
+        enableColumnActions: false,
+        enableSorting: false,
+        enableHiding: false,
+        muiTableHeadCellProps: { align: 'right' },
+        Cell: () => {
+          const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+          const open = Boolean(anchorEl);
+          
+          // Debug: log the toggle states
+          console.log('showMoreOptions:', showMoreOptions, 'showHoverAction:', showHoverAction);
+          
+          return (
+            <div style={{ position: 'relative', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+              {/* Quick action button - only visible on hover/focus/selection when enabled */}
+              {showHoverAction && (
+                <div className="row-hover-actions" style={{
+                  position: 'absolute',
+                  right: showMoreOptions ? '48px' : '8px', // Position based on whether three dots are shown
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: 0,
+                  transition: 'opacity 0.15s ease-in-out',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}>
+                  <Button 
+                    size="small" 
+                    variant="contained" 
+                    sx={{ 
+                      minWidth: 'auto', 
+                      px: 1.5,
+                      backgroundColor: '#424242',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      height: '24px',
+                      textTransform: 'none',
+                      '&:hover': {
+                        backgroundColor: '#616161',
+                      }
+                    }}
+                  >
+                    Action
+                  </Button>
+                </div>
+              )}
+              
+              {/* Three dots menu - always visible when enabled */}
+              {showMoreOptions && (
+                <>
+                  <Tooltip title="More options">
+                    <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+                    <MenuItem dense onClick={() => setAnchorEl(null)}>View</MenuItem>
+                    <MenuItem dense onClick={() => setAnchorEl(null)}>Edit</MenuItem>
+                    <MenuItem dense onClick={() => setAnchorEl(null)}>Archive</MenuItem>
+                  </Menu>
+                </>
+              )}
+            </div>
+          );
+        },
       },
     ],
     [],
@@ -392,6 +468,7 @@ function App() {
     enableRowSelection: enableSelection,
     enableSelectAll: enableSelection,
     enableMultiRowSelection: enableSelection,
+    enableRowActions: false,
     state: { columnVisibility },
     onColumnVisibilityChange: setColumnVisibility,
     muiTableHeadCellProps: {
@@ -414,6 +491,28 @@ function App() {
     muiTableBodyRowProps: {
       sx: {
         height: '40px',
+        cursor: 'default',
+        '&:hover': {
+          backgroundColor: '#f5f5f5',
+          '& .row-hover-actions': {
+            opacity: 1,
+            pointerEvents: 'auto',
+          },
+        },
+        '&:focus-within': {
+          backgroundColor: '#f5f5f5',
+          '& .row-hover-actions': {
+            opacity: 1,
+            pointerEvents: 'auto',
+          },
+        },
+        '&.Mui-selected': {
+          backgroundColor: '#f5f5f5',
+          '& .row-hover-actions': {
+            opacity: 1,
+            pointerEvents: 'auto',
+          },
+        },
         '&.MuiTableRow-root': {
           height: '40px',
         }
@@ -424,6 +523,10 @@ function App() {
         height: '40px',
         padding: '0 16px',
         lineHeight: '40px',
+        position: 'relative',
+        '&:last-child': {
+          position: 'relative',
+        },
         '&.MuiTableCell-root': {
           height: '40px',
           paddingTop: '0',
@@ -443,12 +546,17 @@ function App() {
     },
     muiTableContainerProps: ({ table }) => {
       const pageSize = table.getState().pagination.pageSize;
-      const visibleRows = Math.min(pageSize, table.getFilteredRowModel().rows.length);
+      
+      // For small page sizes (≤20 rows), use exact height to eliminate white space
+      // For larger page sizes, use viewport-based height with internal scrolling
+      const shouldUseExactHeight = pageSize <= 20;
       
       return {
         sx: {
-          height: pageSize <= 10 ? 'auto' : 'calc(100vh - 184px)', // 184px = top padding + gap + title + pagination heights
-          minHeight: pageSize <= 10 ? `${(visibleRows * 40) + 40}px` : 'auto', // 40px per row + 40px for header
+          height: shouldUseExactHeight ? 'fit-content' : 'calc(100vh - 200px)',
+          minHeight: shouldUseExactHeight ? 'fit-content' : '400px',
+          maxHeight: shouldUseExactHeight ? 'fit-content' : 'calc(100vh - 200px)',
+          overflow: shouldUseExactHeight ? 'visible' : 'auto',
         },
       };
     },
@@ -486,9 +594,11 @@ function App() {
     <ThemeProvider theme={theme}>
       <div style={{
         minHeight: '100vh',
+        maxHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
         paddingTop: '20px',
+        overflow: 'hidden', // Prevent page-level scrolling
       }}>
         <div style={{
           width: '100%',
@@ -500,6 +610,7 @@ function App() {
           height: '100%',
           paddingLeft: '20px',
           paddingRight: '20px',
+          overflow: 'hidden', // Prevent container overflow
         }}>
           <h1 style={{
             margin: 0,
@@ -531,8 +642,24 @@ function App() {
               control={<Switch size="small" checked={showEditColumns} onChange={(e) => setShowEditColumns(e.target.checked)} />}
               label="Edit column feature"
             />
+            <FormControlLabel
+              control={<Switch size="small" checked={showMoreOptions} onChange={(e) => setShowMoreOptions(e.target.checked)} />}
+              label={`More options (three dots) ${showMoreOptions ? 'ON' : 'OFF'}`}
+            />
+            <FormControlLabel
+              control={<Switch size="small" checked={showHoverAction} onChange={(e) => setShowHoverAction(e.target.checked)} />}
+              label={`Hover action button ${showHoverAction ? 'ON' : 'OFF'}`}
+            />
           </div>
           <MaterialReactTable table={table} />
+          {/* Hover CTA overlay aligned to the right within table bounds */}
+          <style>{`
+            .row-hover-actions{pointer-events:none;opacity:0}
+            tr:hover .row-hover-actions{opacity:1 !important;pointer-events:auto}
+            tr:focus-within .row-hover-actions{opacity:1 !important;pointer-events:auto}
+            tr.Mui-selected .row-hover-actions{opacity:1 !important;pointer-events:auto}
+            .row-hover-actions button{pointer-events:auto}
+          `}</style>
         </div>
       </div>
     </ThemeProvider>
