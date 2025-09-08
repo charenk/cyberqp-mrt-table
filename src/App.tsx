@@ -226,10 +226,10 @@ function App() {
         },
       },
     ],
-    [],
+    [showHoverAction, showMoreOptions],
   );
 
-  const PaginationComponent = ({ table, position, showActions, showPaginationControls, showEditColumns }: { table: any, position: 'top' | 'bottom', showActions: boolean, showPaginationControls: boolean, showEditColumns: boolean }) => {
+  const PaginationComponent = ({ table, position, showActions, showPaginationControls, showEditColumns }: { table: MRT_TableInstance<Person>, position: 'top' | 'bottom', showActions: boolean, showPaginationControls: boolean, showEditColumns: boolean }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const [stagedVisibility, setStagedVisibility] = useState<Record<string, boolean>>({});
@@ -237,7 +237,7 @@ function App() {
     const handleClose = () => setAnchorEl(null);
     const getResolvedCurrentVisibility = () => {
       const current: Record<string, boolean> = { ...table.getState().columnVisibility };
-      table.getAllLeafColumns().forEach((c: any) => {
+      table.getAllLeafColumns().forEach((c: MRT_Column<Person>) => {
         if (typeof current[c.id] === 'undefined') current[c.id] = true;
       });
       return current;
@@ -303,7 +303,7 @@ function App() {
                     </MenuItem>
                     <Divider sx={{ my: 0 }} />
                     <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
-                      {table.getAllLeafColumns().map((col: any) => {
+                      {table.getAllLeafColumns().map((col: MRT_Column<Person>) => {
                         const checked = typeof stagedVisibility[col.id] === 'undefined' ? true : stagedVisibility[col.id];
                         return (
                           <MenuItem key={col.id} dense onClick={() => setStagedVisibility(prev => ({ ...prev, [col.id]: !checked }))}>
@@ -371,7 +371,7 @@ function App() {
                   </MenuItem>
                   <Divider sx={{ my: 0 }} />
                   <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
-                    {table.getAllLeafColumns().map((col: any) => {
+                    {table.getAllLeafColumns().map((col: MRT_Column<Person>) => {
                       const checked = typeof stagedVisibility[col.id] === 'undefined' ? true : stagedVisibility[col.id];
                       return (
                         <MenuItem key={col.id} dense onClick={() => setStagedVisibility(prev => ({ ...prev, [col.id]: !checked }))}>
