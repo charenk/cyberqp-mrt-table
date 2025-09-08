@@ -3,6 +3,8 @@ import {
   MaterialReactTable,
   useMaterialReactTable,
   type MRT_ColumnDef,
+  type MRT_TableInstance,
+  type MRT_Column,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { TablePagination, Button, Switch, FormControlLabel, Menu, MenuItem, Checkbox, ListItemText, Divider, Box, IconButton, Tooltip } from '@mui/material';
