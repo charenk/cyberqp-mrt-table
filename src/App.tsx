@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   MaterialReactTable,
   useMaterialReactTable,
   type MRT_ColumnDef,
 } from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { TablePagination, Button } from '@mui/material';
+import { TablePagination, Button, Switch, FormControlLabel, Menu, MenuItem, Checkbox, ListItemText, Divider, Box } from '@mui/material';
 
 type Person = {
   name: {
@@ -32,6 +32,37 @@ const data: Person[] = Array.from({ length: 105 }, (_, index) => ({
 }));
 
 function App() {
+  const [showTopPagination, setShowTopPagination] = useState(true);
+  const [showBottomPagination, setShowBottomPagination] = useState(true);
+  const [showActions, setShowActions] = useState(true);
+  const [enableSelection, setEnableSelection] = useState(true);
+  const [showEditColumns, setShowEditColumns] = useState(true);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+
+  const COLUMN_VISIBILITY_STORAGE_KEY = 'mrt-column-visibility';
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          setColumnVisibility(parsed);
+        }
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(columnVisibility));
+    } catch {
+      // ignore quota/storage errors
+    }
+  }, [columnVisibility]);
+
   const theme = createTheme({
     typography: {
       fontSize: 14,
@@ -122,7 +153,27 @@ function App() {
     [],
   );
 
-  const PaginationComponent = ({ table, position }: { table: any, position: 'top' | 'bottom' }) => {
+  const PaginationComponent = ({ table, position, showActions, showPaginationControls, showEditColumns }: { table: any, position: 'top' | 'bottom', showActions: boolean, showPaginationControls: boolean, showEditColumns: boolean }) => {
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+    const [stagedVisibility, setStagedVisibility] = useState<Record<string, boolean>>({});
+    const handleOpen = (event: React.MouseEvent<HTMLButtonElement>) => setAnchorEl(event.currentTarget);
+    const handleClose = () => setAnchorEl(null);
+    const getResolvedCurrentVisibility = () => {
+      const current: Record<string, boolean> = { ...table.getState().columnVisibility };
+      table.getAllLeafColumns().forEach((c: any) => {
+        if (typeof current[c.id] === 'undefined') current[c.id] = true;
+      });
+      return current;
+    };
+    const initializeStaged = () => {
+      setStagedVisibility(getResolvedCurrentVisibility());
+    };
+    const isDirty = JSON.stringify(stagedVisibility) !== JSON.stringify(getResolvedCurrentVisibility());
+    const handleSave = () => {
+      table.setColumnVisibility(stagedVisibility);
+      handleClose();
+    };
     const totalRows = table.getFilteredRowModel().rows.length;
     const pageSize = table.getState().pagination.pageSize;
     const selectedRows = table.getSelectedRowModel().rows.length;
@@ -153,30 +204,44 @@ function App() {
                   ? `${selectedRows} of ${currentPageRows} Customers selected`
                   : `${totalRows} Customers`}
               </span>
-              {table.getSelectedRowModel().rows.length > 0 ? (
+              {showActions && table.getSelectedRowModel().rows.length > 0 ? (
                 <>
                   <Button variant="contained" size="small">Delete selected</Button>
                   <Button variant="outlined" size="small">Archive selected</Button>
                 </>
-              ) : (
+              ) : showActions ? (
                 <>
                   <Button variant="contained" size="small">Primary button</Button>
                   <Button variant="outlined" size="small">Secondary button</Button>
                   <Button variant="outlined" size="small">Secondary button</Button>
-                  <Button variant="outlined" size="small">Secondary button</Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    sx={{
-                      width: '24px',
-                      minWidth: '24px',
-                      padding: 0,
-                    }}
-                  >
-                    i
-                  </Button>
+                  {showEditColumns && (
+                  <>
+                  <Button variant="text" size="small" onClick={(e) => { handleOpen(e); initializeStaged(); }}>Edit column</Button>
+                  <Menu anchorEl={anchorEl} open={open} onClose={handleClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                    PaperProps={{ sx: { minWidth: 220, '& .MuiMenuItem-root': { height: '40px', minHeight: '40px', py: 0, pl: 1 }, '& .MuiList-root': { p: 0 } } }}>
+                    <MenuItem dense disableRipple disableGutters onClick={(e) => e.stopPropagation()} sx={{ cursor: 'default', height: '40px', minHeight: '40px', py: 0, pl: 1, pr: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                        <span style={{ fontWeight: 600 }}>Columns</span>
+                        <Button size="small" variant="contained" onClick={handleSave} disabled={!isDirty}>Save</Button>
+                      </div>
+                    </MenuItem>
+                    <Divider sx={{ my: 0 }} />
+                    <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+                      {table.getAllLeafColumns().map((col: any) => {
+                        const checked = typeof stagedVisibility[col.id] === 'undefined' ? true : stagedVisibility[col.id];
+                        return (
+                          <MenuItem key={col.id} dense onClick={() => setStagedVisibility(prev => ({ ...prev, [col.id]: !checked }))}>
+                            <Checkbox size="small" checked={checked} sx={{ ml: 0, mr: 1, p: 0.5 }} />
+                            <ListItemText primary={col.columnDef.header || col.id} />
+                          </MenuItem>
+                        );
+                      })}
+                    </Box>
+                  </Menu>
+                  </>
+                  )}
                 </>
-              )}
+              ) : null}
             </div>
           ) : <div />}
           <div /> {/* Empty div to maintain space-between layout */}
@@ -207,32 +272,47 @@ function App() {
                   ? `${selectedRows} of ${currentPageRows} Customers selected`
                   : `${totalRows} Customers`}
               </span>
-            {table.getSelectedRowModel().rows.length > 0 ? (
+            {showActions && table.getSelectedRowModel().rows.length > 0 ? (
               <>
                 <Button variant="contained" size="small">Delete selected</Button>
                 <Button variant="outlined" size="small">Archive selected</Button>
               </>
-            ) : (
+            ) : showActions ? (
               <>
                 <Button variant="contained" size="small">Primary button</Button>
                 <Button variant="outlined" size="small">Secondary button</Button>
                 <Button variant="outlined" size="small">Secondary button</Button>
-                <Button variant="outlined" size="small">Secondary button</Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  sx={{
-                    width: '24px',
-                    minWidth: '24px',
-                    padding: 0,
-                  }}
-                >
-                  i
-                </Button>
+                {showEditColumns && (
+                <>
+                <Button variant="text" size="small" onClick={(e) => { handleOpen(e); initializeStaged(); }}>Edit column</Button>
+                <Menu anchorEl={anchorEl} open={open} onClose={handleClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                  PaperProps={{ sx: { minWidth: 220, '& .MuiMenuItem-root': { height: '40px', minHeight: '40px', py: 0, pl: 1 }, '& .MuiList-root': { p: 0 } } }}>
+                  <MenuItem dense disableRipple disableGutters onClick={(e) => e.stopPropagation()} sx={{ cursor: 'default', height: '40px', minHeight: '40px', py: 0, pl: 1, pr: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 600 }}>Columns</span>
+                      <Button size="small" variant="contained" onClick={handleSave} disabled={!isDirty}>Save</Button>
+                    </div>
+                  </MenuItem>
+                  <Divider sx={{ my: 0 }} />
+                  <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+                    {table.getAllLeafColumns().map((col: any) => {
+                      const checked = typeof stagedVisibility[col.id] === 'undefined' ? true : stagedVisibility[col.id];
+                      return (
+                        <MenuItem key={col.id} dense onClick={() => setStagedVisibility(prev => ({ ...prev, [col.id]: !checked }))}>
+                          <Checkbox size="small" checked={checked} sx={{ ml: 0, mr: 1, p: 0.5 }} />
+                          <ListItemText primary={col.columnDef.header || col.id} />
+                        </MenuItem>
+                      );
+                    })}
+                  </Box>
+                </Menu>
+                </>
+                )}
               </>
-            )}
+            ) : null}
           </div>
         ) : <div />}
+        {showPaginationControls && (
         <TablePagination
           component="div"
           count={totalRows}
@@ -291,7 +371,7 @@ function App() {
               },
             },
           }}
-        />
+        />)}
       </div>
     );
   };
@@ -309,9 +389,11 @@ function App() {
     enableHiding: false,
     enableColumnActions: false,
     enableFullScreenToggle: false,
-    enableRowSelection: true,
-    enableSelectAll: true,
-    enableMultiRowSelection: true,
+    enableRowSelection: enableSelection,
+    enableSelectAll: enableSelection,
+    enableMultiRowSelection: enableSelection,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
     muiTableHeadCellProps: {
       sx: {
         height: '40px',
@@ -378,8 +460,19 @@ function App() {
         zIndex: 1,
       },
     },
-    renderTopToolbar: ({ table }) => <PaginationComponent table={table} position="top" />,
-    renderBottomToolbar: ({ table }) => <PaginationComponent table={table} position="bottom" />,
+    // Always hide MRT's built-in bottom toolbar to avoid duplicate pagination rows;
+    // we render our own bottom toolbar conditionally instead.
+    muiBottomToolbarProps: {
+      sx: {
+        display: 'none',
+      },
+    },
+    renderTopToolbar: ({ table }) => (
+      <PaginationComponent table={table} position="top" showActions={showActions} showPaginationControls={showTopPagination} showEditColumns={showEditColumns} />
+    ),
+    renderBottomToolbar: ({ table }) => showBottomPagination ? (
+      <PaginationComponent table={table} position="bottom" showActions={false} showPaginationControls={true} showEditColumns={false} />
+    ) : null,
     enableDensityToggle: false,
     initialState: {
       pagination: {
@@ -417,6 +510,28 @@ function App() {
           }}>
             Page title placeholder
           </h1>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <FormControlLabel
+              control={<Switch size="small" checked={showTopPagination} onChange={(e) => setShowTopPagination(e.target.checked)} />}
+              label="Top pagination"
+            />
+            <FormControlLabel
+              control={<Switch size="small" checked={showBottomPagination} onChange={(e) => setShowBottomPagination(e.target.checked)} />}
+              label="Bottom pagination"
+            />
+            <FormControlLabel
+              control={<Switch size="small" checked={showActions} onChange={(e) => setShowActions(e.target.checked)} />}
+              label="Action CTAs"
+            />
+            <FormControlLabel
+              control={<Switch size="small" checked={enableSelection} onChange={(e) => setEnableSelection(e.target.checked)} />}
+              label="Row checkboxes"
+            />
+            <FormControlLabel
+              control={<Switch size="small" checked={showEditColumns} onChange={(e) => setShowEditColumns(e.target.checked)} />}
+              label="Edit column feature"
+            />
+          </div>
           <MaterialReactTable table={table} />
         </div>
       </div>
